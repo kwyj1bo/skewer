@@ -32,9 +32,9 @@ export default function Home() {
 
           <Link
             href="/dashboard"
-            className="mt-12 inline-flex h-11 w-[290px] items-center justify-center rounded-full bg-[#1dd5a0] px-10 text-[30px] font-bold leading-none tracking-[-0.02em] text-[#07272e] transition-colors duration-200 hover:bg-[#17c592]"
+            className="mt-12 inline-flex h-11 w-[350px] items-center justify-center rounded-full bg-[#1dd5a0] px-10 text-[30px] font-bold leading-none tracking-[-0.02em] text-[#07272e] transition-colors duration-200 hover:bg-[#17c592]"
           >
-            Get Started
+            Scout an opponent
           </Link>
         </div>
 
