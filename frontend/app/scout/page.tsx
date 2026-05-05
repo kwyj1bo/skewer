@@ -40,14 +40,6 @@ type TipRow = {
   bestAgainst: string;
 };
 
-const openingsData: OpeningRow[] = [
-  { opening: "Sicilian Defense", lossRate: 48, drawRate: 22, winRate: 30, games: 24 },
-  { opening: "French Defense", lossRate: 44, drawRate: 27, winRate: 29, games: 17 },
-  { opening: "Caro-Kann Defense", lossRate: 44, drawRate: 24, winRate: 32, games: 16 },
-  { opening: "Ruy Lopez", lossRate: 37, drawRate: 29, winRate: 34, games: 14 },
-  { opening: "Queen's Gambit Declined", lossRate: 32, drawRate: 31, winRate: 37, games: 11 },
-];
-
 const blundersData: BlunderRow[] = [
   {
     pattern: "Bishop gets boxed in",
@@ -135,17 +127,20 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
     params.gameType === "rapid" || params.gameType === "blitz" || params.gameType === "bullet"
       ? params.gameType
       : "all";
-  const sortedOpenings = [...openingsData].sort((a, b) => {
-    if (b.lossRate !== a.lossRate) {
-      return b.lossRate - a.lossRate;
-    }
 
-    if (b.drawRate !== a.drawRate) {
-      return b.drawRate - a.drawRate;
-    }
+  let openingsData: OpeningRow[] = [];
+  try {
+    const res = await fetch(
+      `http://localhost:8080/scout?username=${username}&games=${games}&gameType=${gameType}`,
+      { cache: "no-store" }
+    );
+    const data = await res.json();
+    openingsData = data.openings ?? [];
+  } catch (e) {
+    console.error("Failed to fetch from backend:", e);
+  }
 
-    return b.winRate - a.winRate;
-  });
+  const sortedOpenings = [...openingsData].sort((a, b) => b.games - a.games);
 
   return (
     <main
@@ -237,18 +232,24 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
               </div>
 
               <div>
-                {sortedOpenings.map((row) => (
-                  <div
-                    key={row.opening}
-                    className="grid grid-cols-[1.4fr_repeat(4,minmax(0,1fr))] gap-3 border-b border-[#203638] px-4 py-4 text-[14px] font-bold tracking-[-0.01em] text-[#b8c9ca] last:border-b-0 md:px-5"
-                  >
-                    <span className="text-[#e5efef]">{row.opening}</span>
-                    <span className="text-[#f2a6a0]">{row.lossRate}%</span>
-                    <span>{row.drawRate}%</span>
-                    <span className="text-[#97d8c5]">{row.winRate}%</span>
-                    <span>{row.games}</span>
-                  </div>
-                ))}
+                {sortedOpenings.length === 0 ? (
+                  <p className="px-5 py-6 text-[15px] font-bold text-[#8ba3a5]">
+                    No openings data found for this player.
+                  </p>
+                ) : (
+                  sortedOpenings.map((row) => (
+                    <div
+                      key={row.opening}
+                      className="grid grid-cols-[1.4fr_repeat(4,minmax(0,1fr))] gap-3 border-b border-[#203638] px-4 py-4 text-[14px] font-bold tracking-[-0.01em] text-[#b8c9ca] last:border-b-0 md:px-5"
+                    >
+                      <span className="text-[#e5efef]">{row.opening}</span>
+                      <span className="text-[#f2a6a0]">{row.lossRate.toFixed(0)}%</span>
+                      <span>{row.drawRate.toFixed(0)}%</span>
+                      <span className="text-[#97d8c5]">{row.winRate.toFixed(0)}%</span>
+                      <span>{row.games}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -274,7 +275,8 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
                   </p>
 
                   <p className="mt-3 text-[14px] font-extrabold uppercase tracking-[0.07em] text-[#88a4a6]">
-                    Avg. eval swing: <span className="text-[#dffaf2]">-{row.scoreSwing.toFixed(1)}</span>
+                    Avg. eval swing:{" "}
+                    <span className="text-[#dffaf2]">-{row.scoreSwing.toFixed(1)}</span>
                   </p>
                 </article>
               ))}

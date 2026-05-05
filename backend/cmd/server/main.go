@@ -1,17 +1,19 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
-	"github.com/go-chi/chi/v5"
+
+	"skewer-backend/api/handlers"
 )
 
 func main() {
-	r := chi.NewRouter()
-
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request){
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "pong")
 	})
 
-	http.ListenAndServe(":8080", r);
+	http.HandleFunc("/scout", handlers.ScoutHandler)
+
+	fmt.Println("Skewer backend running on :8080")
+	http.ListenAndServe(":8080", nil)
 }
