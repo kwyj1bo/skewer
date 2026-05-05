@@ -27,11 +27,30 @@ type OpeningRow = {
   games: number;
 };
 
-type BlunderRow = {
-  pattern: string;
-  detail: string;
-  frequency: number;
-  scoreSwing: number;
+type PhaseStats = {
+  phase: string;
+  inaccuracies: number;
+  mistakes: number;
+  blunders: number;
+};
+
+type ErrorEvent = {
+  gameId: string;
+  moveNumber: number;
+  phase: string;
+  type: string;
+  comment: string;
+};
+
+type BlundersData = {
+  gamesAnalyzed: number;
+  totalGames: number;
+  inaccuracies: number;
+  mistakes: number;
+  blunders: number;
+  byPhase: PhaseStats[];
+  avgAccuracy?: number | null;
+  errors: ErrorEvent[];
 };
 
 type TipRow = {
@@ -39,33 +58,6 @@ type TipRow = {
   plan: string;
   bestAgainst: string;
 };
-
-const blundersData: BlunderRow[] = [
-  {
-    pattern: "Bishop gets boxed in",
-    detail: "Locks dark-square bishop behind pawns after ...e6 and ...d5 without a freeing break.",
-    frequency: 19,
-    scoreSwing: 1.8,
-  },
-  {
-    pattern: "Early knight flank jump",
-    detail: "Plays ...Nh5 ideas too soon, dropping central control and tactical defense.",
-    frequency: 14,
-    scoreSwing: 1.4,
-  },
-  {
-    pattern: "Same inaccuracy: premature pawn push",
-    detail: "Repeats ...g5 expansion before king safety is secured.",
-    frequency: 12,
-    scoreSwing: 1.2,
-  },
-  {
-    pattern: "Missed recapture sequence",
-    detail: "Chooses quiet recapture instead of tactical recapture in open center positions.",
-    frequency: 9,
-    scoreSwing: 1.0,
-  },
-];
 
 const tipsData: TipRow[] = [
   {
@@ -129,13 +121,23 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
       : "all";
 
   let openingsData: OpeningRow[] = [];
+  let blundersData: BlundersData | null = null;
+
   try {
-    const res = await fetch(
-      `http://localhost:8080/scout?username=${username}&games=${games}&gameType=${gameType}`,
-      { cache: "no-store" }
-    );
-    const data = await res.json();
-    openingsData = data.openings ?? [];
+    if (activeTab === "openings") {
+      const res = await fetch(
+        `http://localhost:8080/scout?username=${username}&games=${games}&gameType=${gameType}`,
+        { cache: "no-store" }
+      );
+      const data = await res.json();
+      openingsData = data.openings ?? [];
+    } else if (activeTab === "blunders") {
+      const res = await fetch(
+        `http://localhost:8080/blunders?username=${username}&games=${games}&gameType=${gameType}`,
+        { cache: "no-store" }
+      );
+      blundersData = await res.json();
+    }
   } catch (e) {
     console.error("Failed to fetch from backend:", e);
   }
@@ -189,33 +191,30 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href={buildTabHref("openings", platform, username, games, gameType)}
-              className={`inline-flex h-11 items-center justify-center rounded-full px-6 text-[17px] font-extrabold tracking-[-0.02em] transition-colors duration-200 ${
-                activeTab === "openings"
+              className={`inline-flex h-11 items-center justify-center rounded-full px-6 text-[17px] font-extrabold tracking-[-0.02em] transition-colors duration-200 ${activeTab === "openings"
                   ? "bg-[#1dd5a0] text-[#07272e]"
                   : "border border-[#2b4548] text-[#b6c6c7] hover:border-[#3e6367] hover:text-[#e5eded]"
-              }`}
+                }`}
             >
               Openings
             </Link>
 
             <Link
               href={buildTabHref("blunders", platform, username, games, gameType)}
-              className={`inline-flex h-11 items-center justify-center rounded-full px-6 text-[17px] font-extrabold tracking-[-0.02em] transition-colors duration-200 ${
-                activeTab === "blunders"
+              className={`inline-flex h-11 items-center justify-center rounded-full px-6 text-[17px] font-extrabold tracking-[-0.02em] transition-colors duration-200 ${activeTab === "blunders"
                   ? "bg-[#1dd5a0] text-[#07272e]"
                   : "border border-[#2b4548] text-[#b6c6c7] hover:border-[#3e6367] hover:text-[#e5eded]"
-              }`}
+                }`}
             >
               Blunders
             </Link>
 
             <Link
               href={buildTabHref("tips", platform, username, games, gameType)}
-              className={`inline-flex h-11 items-center justify-center rounded-full px-6 text-[17px] font-extrabold tracking-[-0.02em] transition-colors duration-200 ${
-                activeTab === "tips"
+              className={`inline-flex h-11 items-center justify-center rounded-full px-6 text-[17px] font-extrabold tracking-[-0.02em] transition-colors duration-200 ${activeTab === "tips"
                   ? "bg-[#1dd5a0] text-[#07272e]"
                   : "border border-[#2b4548] text-[#b6c6c7] hover:border-[#3e6367] hover:text-[#e5eded]"
-              }`}
+                }`}
             >
               Tips
             </Link>
@@ -255,31 +254,126 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
           )}
 
           {activeTab === "blunders" && (
-            <div className="mt-8 grid gap-4">
-              {blundersData.map((row) => (
-                <article
-                  key={row.pattern}
-                  className="rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#e6f0f0]">
-                      {row.pattern}
-                    </h2>
-                    <span className="inline-flex h-8 items-center rounded-full border border-[#34565a] px-3 text-[12px] font-extrabold uppercase tracking-[0.07em] text-[#9db6b8]">
-                      {row.frequency} occurrences
-                    </span>
+            <div className="mt-8">
+              {!blundersData || blundersData.gamesAnalyzed === 0 ? (
+                <p className="px-1 text-[15px] font-bold text-[#8ba3a5]">
+                  No engine analysis found for this player&apos;s recent games. Lichess computer
+                  analysis must exist on the games to detect errors.
+                </p>
+              ) : (
+                <>
+                  {/* Summary bar */}
+                  <div className="mb-6 flex flex-wrap gap-3">
+                    <div className="flex-1 min-w-[120px] rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4 text-center">
+                      <p className="text-[32px] font-extrabold tracking-[-0.03em] text-[#f2a6a0]">{blundersData.blunders}</p>
+                      <p className="mt-1 text-[12px] font-extrabold uppercase tracking-[0.07em] text-[#88a4a6]">Blunders</p>
+                    </div>
+                    <div className="flex-1 min-w-[120px] rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4 text-center">
+                      <p className="text-[32px] font-extrabold tracking-[-0.03em] text-[#f0c87a]">{blundersData.mistakes}</p>
+                      <p className="mt-1 text-[12px] font-extrabold uppercase tracking-[0.07em] text-[#88a4a6]">Mistakes</p>
+                    </div>
+                    <div className="flex-1 min-w-[120px] rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4 text-center">
+                      <p className="text-[32px] font-extrabold tracking-[-0.03em] text-[#b8c9ca]">{blundersData.inaccuracies}</p>
+                      <p className="mt-1 text-[12px] font-extrabold uppercase tracking-[0.07em] text-[#88a4a6]">Inaccuracies</p>
+                    </div>
+                    {blundersData.avgAccuracy != null && (
+                      <div className="flex-1 min-w-[120px] rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4 text-center">
+                        <p className="text-[32px] font-extrabold tracking-[-0.03em] text-[#1ce0ad]">{blundersData.avgAccuracy.toFixed(1)}%</p>
+                        <p className="mt-1 text-[12px] font-extrabold uppercase tracking-[0.07em] text-[#88a4a6]">Avg Accuracy</p>
+                      </div>
+                    )}
                   </div>
 
-                  <p className="mt-2 text-[15px] font-bold leading-relaxed tracking-[-0.01em] text-[#9fb4b6]">
-                    {row.detail}
-                  </p>
+                  {/* Phase breakdown */}
+                  <div className="grid gap-4">
+                    {blundersData.byPhase.map((phase) => (
+                      <article
+                        key={phase.phase}
+                        className="rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4"
+                      >
+                        <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#e6f0f0]">
+                          {phase.phase}
+                        </h2>
+                        <div className="mt-3 flex flex-wrap gap-4">
+                          <p className="text-[14px] font-bold text-[#9fb4b6]">
+                            Blunders:{" "}
+                            <span className="text-[#f2a6a0] font-extrabold">{phase.blunders}</span>
+                          </p>
+                          <p className="text-[14px] font-bold text-[#9fb4b6]">
+                            Mistakes:{" "}
+                            <span className="text-[#f0c87a] font-extrabold">{phase.mistakes}</span>
+                          </p>
+                          <p className="text-[14px] font-bold text-[#9fb4b6]">
+                            Inaccuracies:{" "}
+                            <span className="text-[#b8c9ca] font-extrabold">{phase.inaccuracies}</span>
+                          </p>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
 
-                  <p className="mt-3 text-[14px] font-extrabold uppercase tracking-[0.07em] text-[#88a4a6]">
-                    Avg. eval swing:{" "}
-                    <span className="text-[#dffaf2]">-{row.scoreSwing.toFixed(1)}</span>
+                  {/* Individual error list */}
+                  {blundersData.errors && blundersData.errors.length > 0 && (
+                    <div className="mt-8">
+                      <p className="mb-4 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#88a4a6]">
+                        Error Log
+                      </p>
+                      <div className="overflow-hidden rounded-2xl border border-[#2b4548]">
+                        {blundersData.errors
+                          .slice()
+                          .sort((a, b) => {
+                            const order: Record<string, number> = { Blunder: 0, Mistake: 1, Inaccuracy: 2 };
+                            return (order[a.type] ?? 3) - (order[b.type] ?? 3);
+                          })
+                          .map((err, idx) => {
+                            const badgeColor =
+                              err.type === "Blunder"
+                                ? "text-[#f2a6a0] border-[#5a2e2e]"
+                                : err.type === "Mistake"
+                                ? "text-[#f0c87a] border-[#5a4a1a]"
+                                : "text-[#b8c9ca] border-[#2b4548]";
+                            return (
+                              <div
+                                key={idx}
+                                className="flex flex-col gap-2 border-b border-[#203638] bg-[#162b2e] px-5 py-4 last:border-b-0 sm:flex-row sm:items-start sm:justify-between"
+                              >
+                                <div className="flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span
+                                      className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-extrabold uppercase tracking-[0.07em] ${badgeColor}`}
+                                    >
+                                      {err.type}
+                                    </span>
+                                    <span className="text-[13px] font-extrabold text-[#4f6e71]">
+                                      Move {err.moveNumber} · {err.phase}
+                                    </span>
+                                  </div>
+                                  {err.comment && (
+                                    <p className="mt-1.5 text-[14px] font-bold leading-snug tracking-[-0.01em] text-[#9fb4b6]">
+                                      {err.comment}
+                                    </p>
+                                  )}
+                                </div>
+                                <a
+                                  href={`https://lichess.org/${err.gameId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="shrink-0 self-start inline-flex h-8 items-center rounded-full border border-[#2b4548] px-3 text-[12px] font-extrabold tracking-[-0.01em] text-[#7a9ea1] transition-colors hover:border-[#3e6367] hover:text-[#c5d9da]"
+                                >
+                                  View game ↗
+                                </a>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="mt-5 text-[13px] font-bold text-[#5a7275]">
+                    Based on {blundersData.gamesAnalyzed} of {blundersData.totalGames} games with engine analysis.
                   </p>
-                </article>
-              ))}
+                </>
+              )}
             </div>
           )}
 

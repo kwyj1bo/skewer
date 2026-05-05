@@ -13,6 +13,7 @@ func main() {
 	})
 
 	http.HandleFunc("/scout", handlers.ScoutHandler)
+	http.HandleFunc("/blunders", handlers.BlundersHandler)
 
 	fmt.Println("Skewer backend running on :8080")
 	http.ListenAndServe(":8080", nil)

@@ -11,13 +11,24 @@ type Player struct {
 	User struct {
 		Name string `json:"name"`
 	} `json:"user"`
-	Accuracy int `json:"accuracy"`
+	Accuracy *int `json:"accuracy"`
+}
+
+type MoveJudgment struct {
+	Name    string `json:"name"`    // "Inaccuracy", "Mistake", or "Blunder"
+	Comment string `json:"comment"` // e.g. "Blunder. Nxd5 was best."
+}
+
+type MoveAnalysis struct {
+	Eval     *int          `json:"eval"`
+	Mate     *int          `json:"mate"`
+	Judgment *MoveJudgment `json:"judgment"`
 }
 
 type Game struct {
-	ID     string `json:"id"`
-	Speed  string `json:"speed"`
-	Winner string `json:"winner"`
+	ID      string `json:"id"`
+	Speed   string `json:"speed"`
+	Winner  string `json:"winner"`
 	Opening struct {
 		Name string `json:"name"`
 		ECO  string `json:"eco"`
@@ -26,10 +37,11 @@ type Game struct {
 		White Player `json:"white"`
 		Black Player `json:"black"`
 	} `json:"players"`
+	Analysis []MoveAnalysis `json:"analysis"`
 }
 
 func FetchGames(username string, max int, gameType string) ([]Game, error) {
-	url := fmt.Sprintf("https://lichess.org/api/games/user/%s?max=%d&opening=true&accuracy=true&rated=true", username, max)
+	url := fmt.Sprintf("https://lichess.org/api/games/user/%s?max=%d&opening=true&accuracy=true&evals=true&rated=true", username, max)
 
 	if gameType != "all" {
 		url += "&perfType=" + gameType
