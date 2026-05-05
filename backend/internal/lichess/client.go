@@ -29,6 +29,7 @@ type Game struct {
 	ID      string `json:"id"`
 	Speed   string `json:"speed"`
 	Winner  string `json:"winner"`
+	Moves   string `json:"moves"` // space-separated SAN, e.g. "e4 e5 Nf3 ..."
 	Opening struct {
 		Name string `json:"name"`
 		ECO  string `json:"eco"`
