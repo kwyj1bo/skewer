@@ -2,12 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type ErrorEvent = {
+type ErrorEventItem = {
   gameId: string;
   moveNumber: number;
   phase: string;
   type: string;
   comment: string;
+  evalDrop: number;
+};
+
+type ErrorPattern = {
+  name: string;
+  count: number;
+  description: string;
 };
 
 type Summary = {
@@ -15,6 +22,7 @@ type Summary = {
   mistakes: number;
   inaccuracies: number;
   totalGames: number;
+  patterns: ErrorPattern[];
 };
 
 type Progress = {
@@ -30,7 +38,7 @@ type Props = {
 };
 
 export default function BlundersStream({ username, games, gameType }: Props) {
-  const [errors, setErrors] = useState<ErrorEvent[]>([]);
+  const [errors, setErrors] = useState<ErrorEventItem[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [done, setDone] = useState(false);
@@ -38,25 +46,25 @@ export default function BlundersStream({ username, games, gameType }: Props) {
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    // Clean up any existing connection
     esRef.current?.close();
+    setErrors([]);
+    setSummary(null);
+    setProgress(null);
+    setDone(false);
+    setFailed(false);
 
     const url = `http://localhost:8080/blunders/stream?username=${encodeURIComponent(username)}&games=${games}&gameType=${gameType}`;
     const es = new EventSource(url);
     esRef.current = es;
 
-    es.addEventListener("progress", (e) => {
-      setProgress(JSON.parse(e.data));
-    });
+    es.addEventListener("progress", (e) => setProgress(JSON.parse(e.data)));
 
     es.addEventListener("error_event", (e) => {
-      const ev: ErrorEvent = JSON.parse(e.data);
+      const ev: ErrorEventItem = JSON.parse(e.data);
       setErrors((prev) => [...prev, ev]);
     });
 
-    es.addEventListener("summary", (e) => {
-      setSummary(JSON.parse(e.data));
-    });
+    es.addEventListener("summary", (e) => setSummary(JSON.parse(e.data)));
 
     es.addEventListener("done", () => {
       setDone(true);
@@ -68,9 +76,7 @@ export default function BlundersStream({ username, games, gameType }: Props) {
       es.close();
     };
 
-    return () => {
-      es.close();
-    };
+    return () => es.close();
   }, [username, games, gameType]);
 
   const badgeColor = (type: string) =>
@@ -80,7 +86,6 @@ export default function BlundersStream({ username, games, gameType }: Props) {
       ? "text-[#f0c87a] border-[#5a4a1a]"
       : "text-[#b8c9ca] border-[#2b4548]";
 
-  // Sort: blunders first, then mistakes, then inaccuracies
   const sorted = [...errors].sort((a, b) => {
     const order: Record<string, number> = { Blunder: 0, Mistake: 1, Inaccuracy: 2 };
     return (order[a.type] ?? 3) - (order[b.type] ?? 3);
@@ -96,7 +101,7 @@ export default function BlundersStream({ username, games, gameType }: Props) {
 
   return (
     <div className="mt-8">
-      {/* Summary tiles — update live */}
+      {/* ── Summary tiles ── */}
       {(summary || errors.length > 0) && (
         <div className="mb-6 flex flex-wrap gap-3">
           {(
@@ -108,7 +113,7 @@ export default function BlundersStream({ username, games, gameType }: Props) {
           ).map(({ label, key, color }) => {
             const count = summary
               ? summary[key]
-              : errors.filter((e) => e.type === label.slice(0, -1) || e.type === label).length;
+              : errors.filter((e) => e.type === label.replace(/s$/, "")).length;
             return (
               <div
                 key={label}
@@ -124,7 +129,7 @@ export default function BlundersStream({ username, games, gameType }: Props) {
         </div>
       )}
 
-      {/* Progress bar */}
+      {/* ── Progress bar ── */}
       {!done && progress && (
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between">
@@ -144,12 +149,40 @@ export default function BlundersStream({ username, games, gameType }: Props) {
         </div>
       )}
 
-      {/* Waiting for first event */}
       {!done && !progress && errors.length === 0 && (
         <p className="text-[15px] font-bold text-[#8ba3a5]">Connecting to analysis engine…</p>
       )}
 
-      {/* Error log */}
+      {/* ── Pattern Report (shown after done) ── */}
+      {done && summary?.patterns && summary.patterns.length > 0 && (
+        <div className="mb-8">
+          <p className="mb-4 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#88a4a6]">
+            Pattern Report
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {summary.patterns.map((p) => (
+              <article
+                key={p.name}
+                className="rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-[16px] font-extrabold tracking-[-0.02em] text-[#e6f0f0]">
+                    {p.name}
+                  </h2>
+                  <span className="shrink-0 inline-flex h-7 min-w-[32px] items-center justify-center rounded-full border border-[#5a2e2e] px-2.5 text-[13px] font-extrabold text-[#f2a6a0]">
+                    ×{p.count}
+                  </span>
+                </div>
+                <p className="mt-2 text-[13px] font-bold leading-snug text-[#7a9ea1]">
+                  {p.description}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Error log ── */}
       {sorted.length > 0 && (
         <div>
           <p className="mb-4 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#88a4a6]">
@@ -171,6 +204,11 @@ export default function BlundersStream({ username, games, gameType }: Props) {
                     <span className="text-[13px] font-extrabold text-[#4f6e71]">
                       Move {err.moveNumber} · {err.phase}
                     </span>
+                    {err.evalDrop > 0 && (
+                      <span className="text-[12px] font-bold text-[#5a7275]">
+                        −{err.evalDrop.toFixed(1)} ♟
+                      </span>
+                    )}
                   </div>
                   {err.comment && (
                     <p className="mt-1.5 text-[14px] font-bold leading-snug tracking-[-0.01em] text-[#9fb4b6]">
@@ -192,14 +230,10 @@ export default function BlundersStream({ username, games, gameType }: Props) {
         </div>
       )}
 
-      {/* No errors found after full analysis */}
       {done && sorted.length === 0 && (
-        <p className="text-[15px] font-bold text-[#8ba3a5]">
-          No errors detected in analyzed games.
-        </p>
+        <p className="text-[15px] font-bold text-[#8ba3a5]">No errors detected in analyzed games.</p>
       )}
 
-      {/* Footer */}
       {done && summary && (
         <p className="mt-5 text-[13px] font-bold text-[#5a7275]">
           Analysis complete — {summary.totalGames} game{summary.totalGames !== 1 ? "s" : ""} processed.

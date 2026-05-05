@@ -181,3 +181,6 @@ func EvalFEN(fen string, depth int) (*EvalResult, error) {
 	defer func() { globalPool.ch <- w }()
 	return w.eval(fen, depth)
 }
+
+// EvalFENAvailable reports whether the engine pool is ready to accept requests.
+func EvalFENAvailable() bool { return globalPool != nil }

@@ -43,27 +43,19 @@ type ErrorEvent = {
   comment: string;
 };
 
-type BlundersData = {
-  gamesAnalyzed: number;
-  totalGames: number;
-  inaccuracies: number;
-  mistakes: number;
-  blunders: number;
-  byPhase: PhaseStats[];
-  avgAccuracy?: number | null;
-  errors: ErrorEvent[];
-};
 
 type TargetOpening = {
   name: string;
   lossRate: number;
   winRate: number;
+  drawRate: number;
   games: number;
 };
 
 type TipsData = {
   targetOpenings: TargetOpening[];
   avoidOpenings: TargetOpening[];
+  allOpenings: TargetOpening[];
   weakestPhase: string;
   blundersByPhase: PhaseStats[];
   avgAccuracy?: number | null;
@@ -115,7 +107,6 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
       : "all";
 
   let openingsData: OpeningRow[] = [];
-  let blundersData: BlundersData | null = null;
   let tipsData: TipsData | null = null;
 
   try {
@@ -255,46 +246,66 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
           {activeTab === "tips" && (
             <div className="mt-8">
               {!tipsData ? (
-                <p className="text-[15px] font-bold text-[#8ba3a5]">Loading tips…</p>
+                <p className="text-[15px] font-bold text-[#8ba3a5]">
+                  Could not load tips — make sure the backend is running.
+                </p>
               ) : (
                 <>
-                  {/* Openings to play */}
+                  {/* Opening table — show targets if any, otherwise all openings sorted by loss rate */}
                   <p className="mb-4 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#88a4a6]">
                     Openings to play against them
                   </p>
-                  {tipsData.targetOpenings.length === 0 ? (
-                    <p className="mb-8 text-[14px] font-bold text-[#5a7275]">
-                      Not enough data yet — scout more games to surface weak openings.
-                    </p>
-                  ) : (
-                    <div className="mb-8 grid gap-3">
-                      {tipsData.targetOpenings.map((op) => (
-                        <article
-                          key={op.name}
-                          className="rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4"
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <h2 className="text-[17px] font-extrabold tracking-[-0.02em] text-[#e6f0f0]">
-                              {op.name}
-                            </h2>
-                            <span className="inline-flex h-7 items-center rounded-full border border-[#5a2e2e] px-3 text-[12px] font-extrabold uppercase tracking-[0.06em] text-[#f2a6a0]">
-                              They lose {op.lossRate.toFixed(0)}% here
-                            </span>
+                  {(() => {
+                    const toShow =
+                      tipsData.targetOpenings.length > 0
+                        ? tipsData.targetOpenings
+                        : tipsData.allOpenings.slice(0, 5);
+                    if (toShow.length === 0) {
+                      return (
+                        <p className="mb-8 text-[14px] font-bold text-[#5a7275]">
+                          Scout more games to surface opening patterns.
+                        </p>
+                      );
+                    }
+                    return (
+                      <div className="mb-8 overflow-hidden rounded-2xl border border-[#2b4548]">
+                        <div className="grid grid-cols-[1.6fr_1fr_1fr_1fr] border-b border-[#2b4548] px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.07em] text-[#8ba3a5]">
+                          <span>Opening</span>
+                          <span className="text-[#f2a6a0]">Loss %</span>
+                          <span>Draw %</span>
+                          <span className="text-[#97d8c5]">Win %</span>
+                        </div>
+                        {toShow.map((op) => (
+                          <div
+                            key={op.name}
+                            className="border-b border-[#203638] bg-[#162b2e] px-4 py-3 last:border-b-0"
+                          >
+                            <div className="grid grid-cols-[1.6fr_1fr_1fr_1fr] items-center">
+                              <span className="text-[14px] font-bold text-[#e5efef]">{op.name}</span>
+                              <span className="text-[14px] font-extrabold text-[#f2a6a0]">
+                                {op.lossRate.toFixed(0)}%
+                              </span>
+                              <span className="text-[14px] font-bold text-[#b8c9ca]">
+                                {(op.drawRate ?? 0).toFixed(0)}%
+                              </span>
+                              <span className="text-[14px] font-bold text-[#97d8c5]">
+                                {op.winRate.toFixed(0)}%
+                              </span>
+                            </div>
+                            {/* stacked bar */}
+                            <div className="mt-2 flex h-1 w-full overflow-hidden rounded-full">
+                              <div className="bg-[#f2a6a0]" style={{ width: `${op.lossRate}%` }} />
+                              <div className="bg-[#4a6568]" style={{ width: `${op.drawRate ?? 0}%` }} />
+                              <div className="bg-[#97d8c5]" style={{ width: `${op.winRate}%` }} />
+                            </div>
+                            <p className="mt-1 text-[11px] font-bold text-[#4f6e71]">
+                              {op.games} game{op.games !== 1 ? "s" : ""}
+                            </p>
                           </div>
-                          {/* loss rate bar */}
-                          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#1e3436]">
-                            <div
-                              className="h-full rounded-full bg-[#f2a6a0]"
-                              style={{ width: `${op.lossRate}%` }}
-                            />
-                          </div>
-                          <p className="mt-2 text-[13px] font-bold text-[#5a7275]">
-                            {op.games} game{op.games !== 1 ? "s" : ""} sampled
-                          </p>
-                        </article>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    );
+                  })()}
 
                   {/* Openings to avoid */}
                   {tipsData.avoidOpenings.length > 0 && (
@@ -302,81 +313,86 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
                       <p className="mb-4 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#88a4a6]">
                         Openings to avoid — they dominate here
                       </p>
-                      <div className="mb-8 grid gap-3">
+                      <div className="mb-8 overflow-hidden rounded-2xl border border-[#2b4548]">
                         {tipsData.avoidOpenings.map((op) => (
-                          <article
+                          <div
                             key={op.name}
-                            className="rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4"
+                            className="border-b border-[#203638] bg-[#162b2e] px-5 py-3 last:border-b-0"
                           >
-                            <div className="flex flex-wrap items-start justify-between gap-2">
-                              <h2 className="text-[17px] font-extrabold tracking-[-0.02em] text-[#e6f0f0]">
-                                {op.name}
-                              </h2>
-                              <span className="inline-flex h-7 items-center rounded-full border border-[#1a4a35] px-3 text-[12px] font-extrabold uppercase tracking-[0.06em] text-[#97d8c5]">
-                                They win {op.winRate.toFixed(0)}% here
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="text-[14px] font-bold text-[#e5efef]">{op.name}</span>
+                              <span className="text-[12px] font-extrabold text-[#97d8c5]">
+                                {op.winRate.toFixed(0)}% win rate
                               </span>
                             </div>
-                            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#1e3436]">
+                            <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-[#1e3436]">
                               <div
                                 className="h-full rounded-full bg-[#97d8c5]"
                                 style={{ width: `${op.winRate}%` }}
                               />
                             </div>
-                            <p className="mt-2 text-[13px] font-bold text-[#5a7275]">
-                              {op.games} game{op.games !== 1 ? "s" : ""} sampled
-                            </p>
-                          </article>
+                          </div>
                         ))}
                       </div>
                     </>
                   )}
 
-                  {/* Exploit their weaknesses */}
-                  {tipsData.gamesAnalyzed > 0 && (
-                    <>
-                      <p className="mb-4 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#88a4a6]">
-                        How to exploit their weaknesses
-                      </p>
-                      <div className="grid gap-3">
+                  {/* How to exploit */}
+                  <p className="mb-4 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#88a4a6]">
+                    How to exploit their weaknesses
+                  </p>
+                  <div className="grid gap-3">
+                    {/* Phase weakness card — always show based on available data */}
+                    {(() => {
+                      const phases = tipsData.blundersByPhase ?? [];
+                      const hasAny = phases.some(
+                        (p) => p.blunders + p.mistakes + p.inaccuracies > 0
+                      );
+                      if (!hasAny) {
+                        return (
+                          <article className="rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4">
+                            <p className="text-[14px] font-bold text-[#5a7275]">
+                              Steer into the {tipsData.weakestPhase} — engine analysis needed for detailed
+                              breakdown. Scout with more games or wait for Lichess analysis to populate.
+                            </p>
+                          </article>
+                        );
+                      }
+                      const p = phases.find((x) => x.phase === tipsData!.weakestPhase);
+                      if (!p) return null;
+                      const total = p.blunders + p.mistakes + p.inaccuracies;
+                      return (
                         <article className="rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4">
                           <h2 className="text-[17px] font-extrabold tracking-[-0.02em] text-[#e6f0f0]">
                             Push them into the {tipsData.weakestPhase}
                           </h2>
                           <p className="mt-2 text-[14px] font-bold leading-relaxed text-[#9fb4b6]">
-                            {(() => {
-                              const p = tipsData.blundersByPhase.find(
-                                (x) => x.phase === tipsData!.weakestPhase
-                              );
-                              if (!p) return null;
-                              const total = p.blunders + p.mistakes + p.inaccuracies;
-                              return `They made ${p.blunders} blunder${p.blunders !== 1 ? "s" : ""}, ${
-                                p.mistakes
-                              } mistake${p.mistakes !== 1 ? "s" : ""}, and ${p.inaccuracies} inaccurac${
-                                p.inaccuracies !== 1 ? "ies" : "y"
-                              } in the ${tipsData!.weakestPhase} across analyzed games (${total} total errors). Steer the game here.`;
-                            })()}
+                            {`${p.blunders} blunder${p.blunders !== 1 ? "s" : ""}, ${p.mistakes} mistake${p.mistakes !== 1 ? "s" : ""}, and ${p.inaccuracies} inaccurac${p.inaccuracies !== 1 ? "ies" : "y"} in the ${tipsData.weakestPhase} (${total} total). Steer the game here.`}
                           </p>
                         </article>
+                      );
+                    })()}
 
-                        {tipsData.avgAccuracy != null && (
-                          <article className="rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4">
-                            <h2 className="text-[17px] font-extrabold tracking-[-0.02em] text-[#e6f0f0]">
-                              Stay patient — their accuracy is {tipsData.avgAccuracy.toFixed(1)}%
-                            </h2>
-                            <p className="mt-2 text-[14px] font-bold leading-relaxed text-[#9fb4b6]">
-                              {tipsData.avgAccuracy < 80
-                                ? "They make frequent errors under pressure. Keep the position complex and wait for mistakes."
-                                : tipsData.avgAccuracy < 90
-                                ? "They play reasonably accurately but are not immune to errors. Look for tactical shots and complications."
-                                : "They play with high accuracy. Avoid simplifications that lead to drawish positions and aim for imbalanced play."}
-                            </p>
-                          </article>
-                        )}
-                      </div>
-                      <p className="mt-5 text-[13px] font-bold text-[#5a7275]">
-                        Based on {tipsData.gamesAnalyzed} of {tipsData.totalGames} games with engine analysis.
-                      </p>
-                    </>
+                    {tipsData.avgAccuracy != null && (
+                      <article className="rounded-2xl border border-[#2b4548] bg-[#162b2e] px-5 py-4">
+                        <h2 className="text-[17px] font-extrabold tracking-[-0.02em] text-[#e6f0f0]">
+                          Their average accuracy: {tipsData.avgAccuracy.toFixed(1)}%
+                        </h2>
+                        <p className="mt-2 text-[14px] font-bold leading-relaxed text-[#9fb4b6]">
+                          {tipsData.avgAccuracy < 80
+                            ? "They make frequent errors under pressure. Keep positions complex and wait for mistakes."
+                            : tipsData.avgAccuracy < 90
+                            ? "Reasonably accurate but not immune to errors. Look for tactical shots and complications."
+                            : "High accuracy player. Aim for imbalanced, sharp positions to generate winning chances."}
+                        </p>
+                      </article>
+                    )}
+                  </div>
+
+                  {tipsData.gamesAnalyzed > 0 && (
+                    <p className="mt-5 text-[13px] font-bold text-[#5a7275]">
+                      Engine analysis from {tipsData.gamesAnalyzed} of {tipsData.totalGames} games.
+                    </p>
                   )}
                 </>
               )}

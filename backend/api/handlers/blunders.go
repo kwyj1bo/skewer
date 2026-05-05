@@ -18,11 +18,12 @@ type PhaseStats struct {
 
 // ErrorEvent represents a single inaccuracy/mistake/blunder by the player.
 type ErrorEvent struct {
-	GameID     string `json:"gameId"`
-	MoveNumber int    `json:"moveNumber"`
-	Phase      string `json:"phase"`
-	Type       string `json:"type"`    // "Inaccuracy", "Mistake", or "Blunder"
-	Comment    string `json:"comment"` // Lichess description, e.g. "Blunder. Nxd5 was best."
+	GameID     string  `json:"gameId"`
+	MoveNumber int     `json:"moveNumber"`
+	Phase      string  `json:"phase"`
+	Type       string  `json:"type"`    // "Inaccuracy", "Mistake", or "Blunder"
+	Comment    string  `json:"comment"` // description of the error
+	EvalDrop   float64 `json:"evalDrop"` // pawns lost; 0 when not available
 }
 
 type BlundersResponse struct {
