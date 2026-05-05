@@ -1,0 +1,1 @@
+Skewer is a full-stack chess analysis pipeline that fetches opponent match histories from Chess.com and Lichess to generate actionable insights, identify common blunders, and track opening success rates.
