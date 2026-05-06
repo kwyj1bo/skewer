@@ -109,17 +109,19 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
   let openingsData: OpeningRow[] = [];
   let tipsData: TipsData | null = null;
 
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
   try {
     if (activeTab === "openings") {
       const res = await fetch(
-        `http://localhost:8080/scout?username=${username}&games=${games}&gameType=${gameType}`,
+        `${baseUrl}/scout?username=${username}&games=${games}&gameType=${gameType}`,
         { cache: "no-store" }
       );
       const data = await res.json();
       openingsData = data.openings ?? [];
     } else if (activeTab === "tips") {
       const res = await fetch(
-        `http://localhost:8080/tips?username=${username}&games=${games}&gameType=${gameType}`,
+        `${baseUrl}/tips?username=${username}&games=${games}&gameType=${gameType}`,
         { cache: "no-store" }
       );
       tipsData = await res.json();
