@@ -53,7 +53,8 @@ export default function BlundersStream({ username, games, gameType }: Props) {
     setDone(false);
     setFailed(false);
 
-    const url = `http://localhost:8080/blunders/stream?username=${encodeURIComponent(username)}&games=${games}&gameType=${gameType}`;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+    const url = `${baseUrl}/blunders/stream?username=${encodeURIComponent(username)}&games=${games}&gameType=${gameType}`;
     const es = new EventSource(url);
     esRef.current = es;
 
