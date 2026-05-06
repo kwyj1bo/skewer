@@ -49,7 +49,7 @@ func main() {
 
 	fmt.Printf("Skewer backend running on :%s\n", port)
 	
-	err := http.ListenAndServe(":"+port, enableCORS(mux))
+	err := http.ListenAndServe("0.0.0.0:"+port, enableCORS(mux))
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
