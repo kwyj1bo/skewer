@@ -119,15 +119,17 @@ func BlundersHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			ply := i + 1
-			var phaseIdx int
-			var phaseName string
-			if ply <= 20 {
-				phaseIdx, phaseName = 0, "Opening"
-			} else if ply <= 60 {
-				phaseIdx, phaseName = 1, "Middlegame"
-			} else {
-				phaseIdx, phaseName = 2, "Endgame"
+			var fen string
+			if i < len(fenAtPly) {
+				fen = fenAtPly[i]
+			}
+			phaseName := fenToPhase(fen)
+			phaseIdx := 0
+			switch phaseName {
+			case "Middlegame":
+				phaseIdx = 1
+			case "Endgame":
+				phaseIdx = 2
 			}
 
 			moveNumber := i/2 + 1
@@ -144,10 +146,6 @@ func BlundersHandler(w http.ResponseWriter, r *http.Request) {
 				phases[phaseIdx].Blunders++
 			}
 
-			var fen string
-			if i < len(fenAtPly) {
-				fen = fenAtPly[i]
-			}
 			errors = append(errors, ErrorEvent{
 				GameID:     g.ID,
 				MoveNumber: moveNumber,

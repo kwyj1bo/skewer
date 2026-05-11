@@ -97,8 +97,11 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 
-				ply := j + 1
-				phase := plyToPhase(ply)
+				var fen string
+				if j < len(fenAtPly) {
+					fen = fenAtPly[j]
+				}
+				phase := fenToPhase(fen)
 				moveNum := j/2 + 1
 
 				drop := estimateDrop(g.Analysis, j, playerColor)
@@ -113,10 +116,6 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				errorsPerGame[g.ID]++
 
-				var fen string
-				if j < len(fenAtPly) {
-					fen = fenAtPly[j]
-				}
 				ev := ErrorEvent{
 					GameID:     g.ID,
 					MoveNumber: moveNum,
@@ -193,7 +192,6 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			errorsPerGame[g.ID]++
 
-			ply := idx + 1
 			comment := fmt.Sprintf("%s. Best was %s (%.1f pawns lost).", errType, evals[idx].best, drop)
 
 			var fen string
@@ -203,7 +201,7 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 			ev := ErrorEvent{
 				GameID:     g.ID,
 				MoveNumber: idx/2 + 1,
-				Phase:      plyToPhase(ply),
+				Phase:      fenToPhase(fen),
 				Type:       errType,
 				Comment:    comment,
 				EvalDrop:   drop,
@@ -370,11 +368,29 @@ func estimateDrop(analysis []lichess.MoveAnalysis, idx int, playerColor string) 
 	return engine.EvalDrop(playerColor, before, after)
 }
 
-func plyToPhase(ply int) string {
-	if ply <= 20 {
-		return "Opening"
-	} else if ply <= 60 {
+func fenToPhase(fen string) string {
+	if fen == "" {
 		return "Middlegame"
 	}
-	return "Endgame"
+	board := strings.Fields(fen)[0]
+	hasWhiteQueen := strings.Contains(board, "Q")
+	hasBlackQueen := strings.Contains(board, "q")
+	material := 0
+	for _, c := range board {
+		switch c {
+		case 'Q', 'q':
+			material += 9
+		case 'R', 'r':
+			material += 5
+		case 'B', 'b', 'N', 'n':
+			material += 3
+		}
+	}
+	if (!hasWhiteQueen && !hasBlackQueen) || material <= 15 {
+		return "Endgame"
+	}
+	if material >= 50 {
+		return "Opening"
+	}
+	return "Middlegame"
 }
