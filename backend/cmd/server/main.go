@@ -10,7 +10,6 @@ import (
 )
 
 func main() {
-	// Initialise Stockfish worker pool (4 parallel workers)
 	if err := engine.Init(4); err != nil {
 		log.Fatalf("Stockfish init failed: %v", err)
 	}

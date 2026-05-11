@@ -14,7 +14,6 @@ import (
 	"skewer-backend/internal/lichess"
 )
 
-// SSE helpers
 func sseEvent(w http.ResponseWriter, event string, data any) {
 	b, _ := json.Marshal(data)
 	fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, b)
@@ -23,7 +22,6 @@ func sseEvent(w http.ResponseWriter, event string, data any) {
 	}
 }
 
-// ErrorPattern is one detected recurring pattern (computed after all games).
 type ErrorPattern struct {
 	Name        string `json:"name"`
 	Count       int    `json:"count"`
@@ -57,9 +55,8 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	totalBlunders, totalMistakes, totalInaccuracies := 0, 0, 0
-	var allErrors []ErrorEvent // accumulated for pattern analysis
+	var allErrors []ErrorEvent
 
-	// errorsPerGame tracks how many errors the player had per game (for multi-error pattern)
 	errorsPerGame := map[string]int{}
 
 	for i, g := range games {
@@ -76,7 +73,6 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 			playerColor = "black"
 		}
 
-		// ── Path A: Lichess pre-computed analysis ──
 		if len(g.Analysis) > 0 {
 			for j, move := range g.Analysis {
 				if move.Judgment == nil {
@@ -93,7 +89,6 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 				phase := plyToPhase(ply)
 				moveNum := j/2 + 1
 
-				// Estimate eval drop from Lichess centipawn fields
 				drop := estimateDrop(g.Analysis, j, playerColor)
 
 				switch move.Judgment.Name {
@@ -121,7 +116,6 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// ── Path B: Stockfish analysis ──
 		if g.Moves == "" {
 			sseEvent(w, "game_done", map[string]any{"gameId": g.ID, "source": "skipped"})
 			continue
@@ -196,7 +190,6 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 		sseEvent(w, "game_done", map[string]any{"gameId": g.ID, "source": "stockfish"})
 	}
 
-	// ── Pattern analysis ──
 	patterns := analysePatterns(allErrors, errorsPerGame)
 
 	sseEvent(w, "summary", map[string]any{
@@ -209,18 +202,16 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 	sseEvent(w, "done", map[string]any{})
 }
 
-// analysePatterns groups collected errors into named recurring patterns.
 func analysePatterns(errors []ErrorEvent, errorsPerGame map[string]int) []ErrorPattern {
 	if len(errors) == 0 {
 		return nil
 	}
 
-	// Counters
 	phaseCount := map[string]int{}
-	criticalDrops := 0         // drop ≥ 3 pawns (full piece)
-	multiErrorGames := 0       // games with ≥3 errors
-	pieceHung := map[string]int{} // piece type that best move recaptures
-	earlyBlunders := 0        // blunders before move 15
+	criticalDrops := 0
+	multiErrorGames := 0
+	pieceHung := map[string]int{}
+	earlyBlunders := 0
 
 	for _, e := range errors {
 		phaseCount[e.Phase]++
@@ -230,8 +221,7 @@ func analysePatterns(errors []ErrorEvent, errorsPerGame map[string]int) []ErrorP
 		if e.MoveNumber < 15 && e.Type == "Blunder" {
 			earlyBlunders++
 		}
-		// Extract piece from best-move hint in comment
-		// Lichess comment: "Blunder. Nxd5 was best." → N = Knight
+		// Lichess comment: "Blunder. Nxd5 was best." → piece letter N
 		// Stockfish comment: "Blunder. Best was d5e6 (2.1 pawns lost)." → no piece letter
 		piece := extractPieceFromComment(e.Comment)
 		if piece != "" {
@@ -246,7 +236,6 @@ func analysePatterns(errors []ErrorEvent, errorsPerGame map[string]int) []ErrorP
 
 	var patterns []ErrorPattern
 
-	// Worst phase
 	worstPhase, worstCount := "", 0
 	for ph, cnt := range phaseCount {
 		if cnt > worstCount {
@@ -262,7 +251,6 @@ func analysePatterns(errors []ErrorEvent, errorsPerGame map[string]int) []ErrorP
 		})
 	}
 
-	// Critical material loss
 	if criticalDrops > 0 {
 		patterns = append(patterns, ErrorPattern{
 			Name:        "Hung material",
@@ -271,7 +259,6 @@ func analysePatterns(errors []ErrorEvent, errorsPerGame map[string]int) []ErrorP
 		})
 	}
 
-	// Early opening disasters
 	if earlyBlunders > 0 {
 		patterns = append(patterns, ErrorPattern{
 			Name:        "Early-game collapses",
@@ -280,7 +267,6 @@ func analysePatterns(errors []ErrorEvent, errorsPerGame map[string]int) []ErrorP
 		})
 	}
 
-	// Games with multiple errors (game collapse)
 	if multiErrorGames > 0 {
 		patterns = append(patterns, ErrorPattern{
 			Name:        "Multi-error games",
@@ -289,7 +275,6 @@ func analysePatterns(errors []ErrorEvent, errorsPerGame map[string]int) []ErrorP
 		})
 	}
 
-	// Most common misdirected piece (from Lichess comments)
 	for piece, cnt := range pieceHung {
 		if cnt >= 2 {
 			fullName := pieceFullName(piece)
@@ -301,7 +286,6 @@ func analysePatterns(errors []ErrorEvent, errorsPerGame map[string]int) []ErrorP
 		}
 	}
 
-	// Sort by count descending
 	for i := 0; i < len(patterns)-1; i++ {
 		for j := i + 1; j < len(patterns); j++ {
 			if patterns[j].Count > patterns[i].Count {
@@ -313,15 +297,11 @@ func analysePatterns(errors []ErrorEvent, errorsPerGame map[string]int) []ErrorP
 	return patterns
 }
 
-// extractPieceFromComment reads the best-move piece letter from Lichess comment text.
-// e.g. "Blunder. Nxd5 was best." → "N"
 func extractPieceFromComment(comment string) string {
-	// Find "X was best" or "Xx... was best" pattern
 	idx := strings.Index(comment, " was best")
 	if idx < 0 {
 		return ""
 	}
-	// Walk backwards to find the start of the move token
 	token := ""
 	for i := idx - 1; i >= 0; i-- {
 		c := rune(comment[i])
@@ -337,7 +317,7 @@ func extractPieceFromComment(comment string) string {
 	if unicode.IsUpper(first) && first != 'O' { // O = castling
 		return string(first)
 	}
-	return "" // pawn move or castling — not interesting for piece patterns
+	return ""
 }
 
 func pieceFullName(p string) string {
@@ -356,7 +336,6 @@ func pieceFullName(p string) string {
 	return p
 }
 
-// estimateDrop computes the eval drop from Lichess centipawn data (Path A).
 func estimateDrop(analysis []lichess.MoveAnalysis, idx int, playerColor string) float64 {
 	if idx == 0 || analysis[idx].Eval == nil || analysis[idx-1].Eval == nil {
 		return 0

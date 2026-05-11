@@ -101,7 +101,6 @@ export default function BlundersStream({ username, games, gameType }: Props) {
 
   return (
     <div className="mt-8">
-      {/* ── Summary tiles ── */}
       {(summary || errors.length > 0) && (
         <div className="mb-6 flex flex-wrap gap-3">
           {(
@@ -129,7 +128,6 @@ export default function BlundersStream({ username, games, gameType }: Props) {
         </div>
       )}
 
-      {/* ── Progress bar ── */}
       {!done && progress && (
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between">
@@ -153,7 +151,6 @@ export default function BlundersStream({ username, games, gameType }: Props) {
         <p className="text-[15px] font-bold text-[#8ba3a5]">Connecting to analysis engine…</p>
       )}
 
-      {/* ── Pattern Report (shown after done) ── */}
       {done && summary?.patterns && summary.patterns.length > 0 && (
         <div className="mb-8">
           <p className="mb-4 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#88a4a6]">
@@ -182,7 +179,6 @@ export default function BlundersStream({ username, games, gameType }: Props) {
         </div>
       )}
 
-      {/* ── Error log ── */}
       {sorted.length > 0 && (
         <div>
           <p className="mb-4 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#88a4a6]">
