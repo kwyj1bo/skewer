@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/notnil/chess"
+
 	"skewer-backend/internal/lichess"
 )
 
@@ -23,6 +25,7 @@ type ErrorEvent struct {
 	Type       string  `json:"type"`
 	Comment    string  `json:"comment"`
 	EvalDrop   float64 `json:"evalDrop"`
+	FEN        string  `json:"fen,omitempty"`
 }
 
 type BlundersResponse struct {
@@ -92,6 +95,18 @@ func BlundersHandler(w http.ResponseWriter, r *http.Request) {
 			accCount++
 		}
 
+		var fenAtPly []string
+		if g.Moves != "" {
+			replayGame := chess.NewGame(chess.UseNotation(chess.AlgebraicNotation{}))
+			fenAtPly = append(fenAtPly, replayGame.Position().String())
+			for _, san := range strings.Fields(g.Moves) {
+				if err := replayGame.MoveStr(san); err != nil {
+					break
+				}
+				fenAtPly = append(fenAtPly, replayGame.Position().String())
+			}
+		}
+
 		for i, move := range g.Analysis {
 			if move.Judgment == nil {
 				continue
@@ -129,12 +144,17 @@ func BlundersHandler(w http.ResponseWriter, r *http.Request) {
 				phases[phaseIdx].Blunders++
 			}
 
+			var fen string
+			if i < len(fenAtPly) {
+				fen = fenAtPly[i]
+			}
 			errors = append(errors, ErrorEvent{
 				GameID:     g.ID,
 				MoveNumber: moveNumber,
 				Phase:      phaseName,
 				Type:       move.Judgment.Name,
 				Comment:    move.Judgment.Comment,
+				FEN:        fen,
 			})
 		}
 	}
