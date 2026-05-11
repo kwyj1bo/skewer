@@ -46,6 +46,7 @@ func main() {
 	mux.HandleFunc("/blunders", handlers.BlundersHandler)
 	mux.HandleFunc("/blunders/stream", handlers.BlundersStreamHandler)
 	mux.HandleFunc("/tips", handlers.TipsHandler)
+	mux.HandleFunc("/explore", handlers.ExploreHandler)
 
 	fmt.Printf("Skewer backend running on :%s\n", port)
 	

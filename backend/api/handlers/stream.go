@@ -74,6 +74,18 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if len(g.Analysis) > 0 {
+			var fenAtPly []string
+			if g.Moves != "" {
+				replayGame := chess.NewGame(chess.UseNotation(chess.AlgebraicNotation{}))
+				fenAtPly = append(fenAtPly, replayGame.Position().String())
+				for _, san := range strings.Fields(g.Moves) {
+					if err := replayGame.MoveStr(san); err != nil {
+						break
+					}
+					fenAtPly = append(fenAtPly, replayGame.Position().String())
+				}
+			}
+
 			for j, move := range g.Analysis {
 				if move.Judgment == nil {
 					continue
@@ -101,6 +113,10 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				errorsPerGame[g.ID]++
 
+				var fen string
+				if j < len(fenAtPly) {
+					fen = fenAtPly[j]
+				}
 				ev := ErrorEvent{
 					GameID:     g.ID,
 					MoveNumber: moveNum,
@@ -108,6 +124,7 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 					Type:       move.Judgment.Name,
 					Comment:    move.Judgment.Comment,
 					EvalDrop:   drop,
+					FEN:        fen,
 				}
 				allErrors = append(allErrors, ev)
 				sseEvent(w, "error_event", ev)
@@ -129,7 +146,9 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 			best string
 		}
 		evals := make([]posEval, 0, len(sanMoves)+1)
+		fens := make([]string, 0, len(sanMoves)+1)
 
+		fens = append(fens, chessGame.Position().String())
 		if res, err := engine.EvalFEN(chessGame.Position().String(), 10); err == nil {
 			evals = append(evals, posEval{eval: res.Evaluation, best: res.BestMove})
 		} else {
@@ -140,6 +159,7 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 			if err := chessGame.MoveStr(san); err != nil {
 				break
 			}
+			fens = append(fens, chessGame.Position().String())
 			if res, err := engine.EvalFEN(chessGame.Position().String(), 10); err == nil {
 				evals = append(evals, posEval{eval: res.Evaluation, best: res.BestMove})
 			} else {
@@ -176,6 +196,10 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 			ply := idx + 1
 			comment := fmt.Sprintf("%s. Best was %s (%.1f pawns lost).", errType, evals[idx].best, drop)
 
+			var fen string
+			if idx < len(fens) {
+				fen = fens[idx]
+			}
 			ev := ErrorEvent{
 				GameID:     g.ID,
 				MoveNumber: idx/2 + 1,
@@ -183,6 +207,7 @@ func BlundersStreamHandler(w http.ResponseWriter, r *http.Request) {
 				Type:       errType,
 				Comment:    comment,
 				EvalDrop:   drop,
+				FEN:        fen,
 			}
 			allErrors = append(allErrors, ev)
 			sseEvent(w, "error_event", ev)
