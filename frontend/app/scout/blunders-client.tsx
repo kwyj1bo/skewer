@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import VariationTree from "./variation-tree";
 
 type ErrorEventItem = {
   gameId: string;
@@ -9,6 +10,7 @@ type ErrorEventItem = {
   type: string;
   comment: string;
   evalDrop: number;
+  fen?: string;
 };
 
 type ErrorPattern = {
@@ -43,6 +45,7 @@ export default function BlundersStream({ username, games, gameType }: Props) {
   const [progress, setProgress] = useState<Progress | null>(null);
   const [done, setDone] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [exploringIdx, setExploringIdx] = useState<number | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -52,6 +55,7 @@ export default function BlundersStream({ username, games, gameType }: Props) {
     setProgress(null);
     setDone(false);
     setFailed(false);
+    setExploringIdx(null);
 
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
     const url = `${baseUrl}/blunders/stream?username=${encodeURIComponent(username)}&games=${games}&gameType=${gameType}`;
@@ -189,38 +193,53 @@ export default function BlundersStream({ username, games, gameType }: Props) {
             {sorted.map((err, idx) => (
               <div
                 key={idx}
-                className="flex flex-col gap-2 border-b border-[#203638] bg-[#162b2e] px-5 py-4 last:border-b-0 sm:flex-row sm:items-start sm:justify-between"
+                className="border-b border-[#203638] bg-[#162b2e] px-5 py-4 last:border-b-0"
               >
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-extrabold uppercase tracking-[0.07em] ${badgeColor(err.type)}`}
-                    >
-                      {err.type}
-                    </span>
-                    <span className="text-[13px] font-extrabold text-[#4f6e71]">
-                      Move {err.moveNumber} · {err.phase}
-                    </span>
-                    {err.evalDrop > 0 && (
-                      <span className="text-[12px] font-bold text-[#5a7275]">
-                        −{err.evalDrop.toFixed(1)} ♟
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-extrabold uppercase tracking-[0.07em] ${badgeColor(err.type)}`}
+                      >
+                        {err.type}
                       </span>
+                      <span className="text-[13px] font-extrabold text-[#4f6e71]">
+                        Move {err.moveNumber} · {err.phase}
+                      </span>
+                      {err.evalDrop > 0 && (
+                        <span className="text-[12px] font-bold text-[#5a7275]">
+                          −{err.evalDrop.toFixed(1)} ♟
+                        </span>
+                      )}
+                    </div>
+                    {err.comment && (
+                      <p className="mt-1.5 text-[14px] font-bold leading-snug tracking-[-0.01em] text-[#9fb4b6]">
+                        {err.comment}
+                      </p>
                     )}
                   </div>
-                  {err.comment && (
-                    <p className="mt-1.5 text-[14px] font-bold leading-snug tracking-[-0.01em] text-[#9fb4b6]">
-                      {err.comment}
-                    </p>
-                  )}
+                  <div className="flex shrink-0 items-center gap-2 self-start">
+                    {err.fen && (
+                      <button
+                        onClick={() => setExploringIdx(exploringIdx === idx ? null : idx)}
+                        className="inline-flex h-8 items-center rounded-full border border-[#2b4548] px-3 text-[12px] font-extrabold tracking-[-0.01em] text-[#1ce0ad] transition-colors hover:border-[#1ce0ad] hover:bg-[#0f2e2b]"
+                      >
+                        {exploringIdx === idx ? "Close" : "Explore ▸"}
+                      </button>
+                    )}
+                    <a
+                      href={`https://lichess.org/${err.gameId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-8 items-center rounded-full border border-[#2b4548] px-3 text-[12px] font-extrabold tracking-[-0.01em] text-[#7a9ea1] transition-colors hover:border-[#3e6367] hover:text-[#c5d9da]"
+                    >
+                      View game ↗
+                    </a>
+                  </div>
                 </div>
-                <a
-                  href={`https://lichess.org/${err.gameId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 self-start inline-flex h-8 items-center rounded-full border border-[#2b4548] px-3 text-[12px] font-extrabold tracking-[-0.01em] text-[#7a9ea1] transition-colors hover:border-[#3e6367] hover:text-[#c5d9da]"
-                >
-                  View game ↗
-                </a>
+                {exploringIdx === idx && err.fen && (
+                  <VariationTree fen={err.fen} />
+                )}
               </div>
             ))}
           </div>

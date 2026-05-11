@@ -172,3 +172,92 @@ func EvalFEN(fen string, depth int) (*EvalResult, error) {
 }
 
 func EvalFENAvailable() bool { return globalPool != nil }
+
+type MultiPVResult struct {
+	Move       string
+	Evaluation float64
+	Mate       *int
+}
+
+func (w *worker) evalMultiPV(fen string, depth, lines int) ([]MultiPVResult, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	fmt.Fprintf(w.stdin, "setoption name MultiPV value %d\n", lines)
+	fmt.Fprintf(w.stdin, "position fen %s\n", fen)
+	fmt.Fprintf(w.stdin, "go depth %d\n", depth)
+
+	type pvInfo struct {
+		eval float64
+		mate *int
+		move string
+	}
+	pvMap := map[int]pvInfo{}
+
+	for w.stdout.Scan() {
+		line := w.stdout.Text()
+		if strings.HasPrefix(line, "info") && strings.Contains(line, "multipv") {
+			parts := strings.Fields(line)
+			var pvIdx int
+			var score float64
+			var mate *int
+			var firstMove string
+			for i, p := range parts {
+				switch p {
+				case "multipv":
+					if i+1 < len(parts) {
+						pvIdx, _ = strconv.Atoi(parts[i+1])
+					}
+				case "cp":
+					if i+1 < len(parts) {
+						if v, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+							score = v / 100.0
+						}
+					}
+				case "mate":
+					if i+1 < len(parts) {
+						if v, err := strconv.Atoi(parts[i+1]); err == nil {
+							mate = &v
+							if v > 0 {
+								score = 99.0
+							} else {
+								score = -99.0
+							}
+						}
+					}
+				case "pv":
+					if i+1 < len(parts) && firstMove == "" {
+						firstMove = parts[i+1]
+					}
+				}
+			}
+			if pvIdx > 0 && firstMove != "" {
+				pvMap[pvIdx] = pvInfo{eval: score, mate: mate, move: firstMove}
+			}
+		}
+		if strings.HasPrefix(line, "bestmove") {
+			break
+		}
+	}
+
+	fmt.Fprintln(w.stdin, "setoption name MultiPV value 1")
+
+	var results []MultiPVResult
+	for i := 1; i <= lines; i++ {
+		info, ok := pvMap[i]
+		if !ok {
+			break
+		}
+		results = append(results, MultiPVResult{Move: info.move, Evaluation: info.eval, Mate: info.mate})
+	}
+	return results, nil
+}
+
+func EvalMultiPV(fen string, depth, lines int) ([]MultiPVResult, error) {
+	if globalPool == nil {
+		return nil, fmt.Errorf("engine pool not initialised")
+	}
+	w := <-globalPool.ch
+	defer func() { globalPool.ch <- w }()
+	return w.evalMultiPV(fen, depth, lines)
+}
