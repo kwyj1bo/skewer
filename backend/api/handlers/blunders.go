@@ -16,14 +16,13 @@ type PhaseStats struct {
 	Blunders     int    `json:"blunders"`
 }
 
-// ErrorEvent represents a single inaccuracy/mistake/blunder by the player.
 type ErrorEvent struct {
 	GameID     string  `json:"gameId"`
 	MoveNumber int     `json:"moveNumber"`
 	Phase      string  `json:"phase"`
-	Type       string  `json:"type"`    // "Inaccuracy", "Mistake", or "Blunder"
-	Comment    string  `json:"comment"` // description of the error
-	EvalDrop   float64 `json:"evalDrop"` // pawns lost; 0 when not available
+	Type       string  `json:"type"`
+	Comment    string  `json:"comment"`
+	EvalDrop   float64 `json:"evalDrop"`
 }
 
 type BlundersResponse struct {
@@ -85,7 +84,6 @@ func BlundersHandler(w http.ResponseWriter, r *http.Request) {
 			playerColor = "black"
 		}
 
-		// Accumulate per-game accuracy
 		if playerColor == "white" && g.Players.White.Accuracy != nil {
 			accSum += *g.Players.White.Accuracy
 			accCount++
@@ -99,7 +97,6 @@ func BlundersHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			// Index 0 = after white's 1st move, index 1 = after black's 1st move, etc.
 			isWhiteMove := i%2 == 0
 			isPlayerMove := (isWhiteMove && playerColor == "white") ||
 				(!isWhiteMove && playerColor == "black")
@@ -107,7 +104,6 @@ func BlundersHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			// Phase by ply: opening ≤20, middlegame ≤60, endgame >60
 			ply := i + 1
 			var phaseIdx int
 			var phaseName string
@@ -119,7 +115,6 @@ func BlundersHandler(w http.ResponseWriter, r *http.Request) {
 				phaseIdx, phaseName = 2, "Endgame"
 			}
 
-			// Move number: ply 1 & 2 = move 1, ply 3 & 4 = move 2, etc.
 			moveNumber := i/2 + 1
 
 			switch move.Judgment.Name {

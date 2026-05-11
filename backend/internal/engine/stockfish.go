@@ -1,5 +1,3 @@
-// Package engine wraps a local Stockfish process via the UCI protocol.
-// A pool of workers is initialised once at startup; callers simply call EvalFEN.
 package engine
 
 import (
@@ -12,23 +10,19 @@ import (
 	"sync"
 )
 
-// EvalResult holds the result of one position evaluation.
 type EvalResult struct {
-	Evaluation float64 // pawns, from white's perspective
-	Mate       *int    // non-nil when forced mate is detected
-	BestMove   string  // UCI notation, e.g. "g1f3"
+	Evaluation float64
+	Mate       *int
+	BestMove   string
 }
 
-// EvalDrop returns how many pawns the player lost on a given move.
-// beforeEval / afterEval are always from white's perspective.
 func EvalDrop(playerColor string, beforeEval, afterEval float64) float64 {
 	if playerColor == "white" {
 		return beforeEval - afterEval
 	}
-	return afterEval - beforeEval // positive when eval rose for white = bad for black
+	return afterEval - beforeEval
 }
 
-// worker owns a single long-lived Stockfish subprocess.
 type worker struct {
 	stdin  io.WriteCloser
 	stdout *bufio.Scanner
@@ -55,7 +49,6 @@ func newWorker(path string) (*worker, error) {
 		stdout: bufio.NewScanner(stdout),
 	}
 
-	// Handshake
 	fmt.Fprintln(w.stdin, "uci")
 	for w.stdout.Scan() {
 		if w.stdout.Text() == "uciok" {
@@ -117,7 +110,6 @@ func (w *worker) eval(fen string, depth int) (*EvalResult, error) {
 	return &EvalResult{Evaluation: score, Mate: mate, BestMove: bestmove}, nil
 }
 
-// pool distributes eval requests across multiple workers.
 type pool struct {
 	ch chan *worker
 }
@@ -126,7 +118,6 @@ var globalPool *pool
 var initOnce sync.Once
 var initErr error
 
-// Init initialises the worker pool. Called once at server startup.
 func Init(size int) error {
 	initOnce.Do(func() {
 		path, err := exec.LookPath("stockfish")
@@ -144,7 +135,6 @@ func Init(size int) error {
 					err = nil
 					break
 				}
-				// Try direct path even if not in PATH
 				cmd := exec.Command(c, "quit")
 				if runErr := cmd.Run(); runErr == nil {
 					path = c
@@ -172,7 +162,6 @@ func Init(size int) error {
 	return initErr
 }
 
-// EvalFEN evaluates the given FEN at the given depth using a pooled worker.
 func EvalFEN(fen string, depth int) (*EvalResult, error) {
 	if globalPool == nil {
 		return nil, fmt.Errorf("engine pool not initialised")
@@ -182,5 +171,4 @@ func EvalFEN(fen string, depth int) (*EvalResult, error) {
 	return w.eval(fen, depth)
 }
 
-// EvalFENAvailable reports whether the engine pool is ready to accept requests.
 func EvalFENAvailable() bool { return globalPool != nil }

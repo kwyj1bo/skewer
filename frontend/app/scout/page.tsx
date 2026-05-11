@@ -251,7 +251,6 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
                 </p>
               ) : (
                 <>
-                  {/* Opening table — show targets if any, otherwise all openings sorted by loss rate */}
                   <p className="mb-4 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#88a4a6]">
                     Openings to play against them
                   </p>
@@ -292,7 +291,6 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
                                 {op.winRate.toFixed(0)}%
                               </span>
                             </div>
-                            {/* stacked bar */}
                             <div className="mt-2 flex h-1 w-full overflow-hidden rounded-full">
                               <div className="bg-[#f2a6a0]" style={{ width: `${op.lossRate}%` }} />
                               <div className="bg-[#4a6568]" style={{ width: `${op.drawRate ?? 0}%` }} />
@@ -307,7 +305,6 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
                     );
                   })()}
 
-                  {/* Openings to avoid */}
                   {tipsData.avoidOpenings.length > 0 && (
                     <>
                       <p className="mb-4 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#88a4a6]">
@@ -337,12 +334,10 @@ export default async function ScoutPage({ searchParams }: ScoutPageProps) {
                     </>
                   )}
 
-                  {/* How to exploit */}
                   <p className="mb-4 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#88a4a6]">
                     How to exploit their weaknesses
                   </p>
                   <div className="grid gap-3">
-                    {/* Phase weakness card — always show based on available data */}
                     {(() => {
                       const phases = tipsData.blundersByPhase ?? [];
                       const hasAny = phases.some(

@@ -15,8 +15,8 @@ type Player struct {
 }
 
 type MoveJudgment struct {
-	Name    string `json:"name"`    // "Inaccuracy", "Mistake", or "Blunder"
-	Comment string `json:"comment"` // e.g. "Blunder. Nxd5 was best."
+	Name    string `json:"name"`
+	Comment string `json:"comment"`
 }
 
 type MoveAnalysis struct {
@@ -29,7 +29,7 @@ type Game struct {
 	ID      string `json:"id"`
 	Speed   string `json:"speed"`
 	Winner  string `json:"winner"`
-	Moves   string `json:"moves"` // space-separated SAN, e.g. "e4 e5 Nf3 ..."
+	Moves   string `json:"moves"`
 	Opening struct {
 		Name string `json:"name"`
 		ECO  string `json:"eco"`

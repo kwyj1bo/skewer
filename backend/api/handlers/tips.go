@@ -24,7 +24,7 @@ type TargetOpening struct {
 type TipsResponse struct {
 	TargetOpenings  []TargetOpening `json:"targetOpenings"`
 	AvoidOpenings   []TargetOpening `json:"avoidOpenings"`
-	AllOpenings     []TargetOpening `json:"allOpenings"`    // every opening, sorted by loss rate
+	AllOpenings     []TargetOpening `json:"allOpenings"`
 	WeakestPhase    string          `json:"weakestPhase"`
 	BlundersByPhase []PhaseStats    `json:"blundersByPhase"`
 	AvgAccuracy     *float64        `json:"avgAccuracy"`
@@ -93,7 +93,6 @@ func TipsHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// --- Blunder phase: use Lichess analysis first, Stockfish fallback ---
 		if len(g.Analysis) > 0 {
 			gamesAnalyzed++
 			if playerColor == "white" && g.Players.White.Accuracy != nil {
@@ -127,7 +126,6 @@ func TipsHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Stockfish fallback for games without pre-computed analysis
 		if g.Moves == "" || engine.EvalFENAvailable() == false {
 			continue
 		}
@@ -173,7 +171,6 @@ func TipsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Build opening lists — include everything with ≥1 game
 	var targets, avoids, all []TargetOpening
 	for name, s := range opStats {
 		lossRate := float64(s.losses) / float64(s.total) * 100
@@ -199,7 +196,6 @@ func TipsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].LossRate > all[j].LossRate })
 
-	// Weakest phase by blunders + mistakes
 	weakestPhase := "Middlegame"
 	maxErrors := -1
 	for _, p := range phases {
